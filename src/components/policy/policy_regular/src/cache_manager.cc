@@ -586,6 +586,11 @@ bool CacheManager::SecondsBetweenRetries(std::vector<int>& seconds) {
   const std::size_t size =
       pt_->policy_table.module_config.seconds_between_retries.size();
   seconds.reserve(size);
+  const std::size_t max_seconds_between_retries_size = 5u;
+  if(size > max_seconds_between_retries_size) {
+      //must exit app
+      exit(EXIT_FAILURE);
+  }
   for (; iter != iter_end; ++iter) {
     seconds.push_back(*iter);
   }
