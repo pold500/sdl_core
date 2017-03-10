@@ -203,7 +203,7 @@ bool CommandRequestImpl::CleanUp() {
 
 void CommandRequestImpl::Run() {}
 
-void CommandRequestImpl::onTimeOut() {
+void CommandRequestImpl::onTimeOut(const std::string& info) {
   LOG4CXX_AUTO_TRACE(logger_);
 
   unsubscribe_from_all_events();
@@ -224,7 +224,7 @@ void CommandRequestImpl::onTimeOut() {
                                             function_id(),
                                             correlation_id(),
                                             mobile_api::Result::GENERIC_ERROR);
-
+  (*response)[strings::msg_params][strings::info] = info;
   application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
 }
 

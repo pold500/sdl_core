@@ -62,7 +62,8 @@ void PerformAudioPassThruRequest::onTimeOut() {
   LOG4CXX_AUTO_TRACE(logger_);
 
   FinishTTSSpeak();
-  CommandRequestImpl::onTimeOut();
+  const std::string info = awaiting_ui_response_ ? "UI component does not respond":"";
+  CommandRequestImpl::onTimeOut(info);
 }
 
 bool PerformAudioPassThruRequest::Init() {
