@@ -329,6 +329,9 @@ TEST_F(PerformAudioPassThruRequestTest, OnTimeout_GENERIC_ERROR) {
   utils::SharedPtr<PerformAudioPassThruRequest> command =
       CreateCommand<PerformAudioPassThruRequest>();
 
+  ON_CALL(app_mngr_, application(command->connection_key()))
+      .WillByDefault(Return(mock_app_));
+
   EXPECT_CALL(app_mngr_, EndAudioPassThrough()).WillOnce(Return(true));
   EXPECT_CALL(app_mngr_, StopAudioPassThru(_));
   EXPECT_CALL(
@@ -473,6 +476,72 @@ TEST_F(
                     success);
 }
 
+TEST_F(
+    PerformAudioPassThruRequestTest,
+    OnEvent_BothInterfaceIsAvailable_TTSResultWARNINGS_UIResultSUCCESS_WARNINGS) {
+  const hmi_apis::Common_Result::eType ui_hmi_response =
+      hmi_apis::Common_Result::SUCCESS;
+  const hmi_apis::Common_Result::eType tts_hmi_response =
+      hmi_apis::Common_Result::WARNINGS;
+  const char* ui_info = NULL;
+  const char* tts_info = NULL;
+  const mobile_apis::Result::eType mobile_response =
+      mobile_apis::Result::WARNINGS;
+  const char* mobile_info = NULL;
+  const am::HmiInterfaces::InterfaceState ui_state =
+      am::HmiInterfaces::STATE_AVAILABLE;
+  const am::HmiInterfaces::InterfaceState tts_state =
+      am::HmiInterfaces::STATE_AVAILABLE;
+  const bool success = true;
+
+  EXPECT_CALL(mock_message_helper_,
+              HMIToMobileResult(hmi_apis::Common_Result::WARNINGS))
+      .WillOnce(Return(mobile_response));
+
+  CheckExpectations(ui_hmi_response,
+                    tts_hmi_response,
+                    ui_info,
+                    tts_info,
+                    mobile_response,
+                    mobile_info,
+                    ui_state,
+                    tts_state,
+                    success);
+}
+
+TEST_F(
+    PerformAudioPassThruRequestTest,
+    OnEvent_BothInterfaceIsAvailable_TTSResultSUCCESS_UIResultWARNINGS_WARNINGS) {
+  const hmi_apis::Common_Result::eType ui_hmi_response =
+      hmi_apis::Common_Result::WARNINGS;
+  const hmi_apis::Common_Result::eType tts_hmi_response =
+      hmi_apis::Common_Result::SUCCESS;
+  const char* ui_info = NULL;
+  const char* tts_info = NULL;
+  const mobile_apis::Result::eType mobile_response =
+      mobile_apis::Result::WARNINGS;
+  const char* mobile_info = NULL;
+  const am::HmiInterfaces::InterfaceState ui_state =
+      am::HmiInterfaces::STATE_AVAILABLE;
+  const am::HmiInterfaces::InterfaceState tts_state =
+      am::HmiInterfaces::STATE_AVAILABLE;
+  const bool success = true;
+
+  EXPECT_CALL(mock_message_helper_,
+              HMIToMobileResult(hmi_apis::Common_Result::WARNINGS))
+      .WillOnce(Return(mobile_response));
+
+  CheckExpectations(ui_hmi_response,
+                    tts_hmi_response,
+                    ui_info,
+                    tts_info,
+                    mobile_response,
+                    mobile_info,
+                    ui_state,
+                    tts_state,
+                    success);
+}
+
 TEST_F(PerformAudioPassThruRequestTest,
        Run_MobileSendAudioPassThruIconStatic_SUCCESS) {
   MessageSharedPtr msg_mobile = CreateMobileMessageSO();
@@ -482,11 +551,12 @@ TEST_F(PerformAudioPassThruRequestTest,
 
   DefineHMILevelUIAvailable();
   ON_CALL(app_mngr_, ManageHMICommand(_)).WillByDefault(Return(true));
-  EXPECT_CALL(mock_message_helper_,
-              VerifyImage((*msg_mobile)[am::strings::msg_params]
-                                       [am::strings::audio_pass_thru_icon],
-                          _,
-                          _)).WillOnce(Return(mobile_apis::Result::SUCCESS));
+  EXPECT_CALL(
+      mock_message_helper_,
+      VerifyImageApplyPath((*msg_mobile)[am::strings::msg_params]
+                                        [am::strings::audio_pass_thru_icon],
+                           _,
+                           _)).WillOnce(Return(mobile_apis::Result::SUCCESS));
 
   command->Run();
 
@@ -529,11 +599,11 @@ TEST_F(PerformAudioPassThruRequestTest,
 
   DefineHMILevelUIAvailable();
   EXPECT_CALL(mock_message_helper_,
-              VerifyImage((*msg_mobile)[am::strings::msg_params]
-                                       [am::strings::audio_pass_thru_icon],
-                          _,
-                          _))
-      .WillOnce(Return(mobile_apis::Result::INVALID_DATA));
+              VerifyImageApplyPath(
+                  (*msg_mobile)[am::strings::msg_params]
+                               [am::strings::audio_pass_thru_icon],
+                  _,
+                  _)).WillOnce(Return(mobile_apis::Result::INVALID_DATA));
 
   command->Run();
 
@@ -578,11 +648,12 @@ TEST_F(PerformAudioPassThruRequestTest,
       CreateCommand<PerformAudioPassThruRequest>(msg_mobile);
 
   DefineHMILevelUIAvailable();
-  EXPECT_CALL(mock_message_helper_,
-              VerifyImage((*msg_mobile)[am::strings::msg_params]
-                                       [am::strings::audio_pass_thru_icon],
-                          _,
-                          _)).WillOnce(Return(mobile_apis::Result::SUCCESS));
+  EXPECT_CALL(
+      mock_message_helper_,
+      VerifyImageApplyPath((*msg_mobile)[am::strings::msg_params]
+                                        [am::strings::audio_pass_thru_icon],
+                           _,
+                           _)).WillOnce(Return(mobile_apis::Result::SUCCESS));
 
   command->Run();
 
@@ -625,7 +696,7 @@ TEST_F(PerformAudioPassThruRequestTest,
       CreateCommand<PerformAudioPassThruRequest>(msg_mobile);
 
   DefineHMILevelUIAvailable();
-  EXPECT_CALL(mock_message_helper_, VerifyImage(_, _, _)).Times(0);
+  EXPECT_CALL(mock_message_helper_, VerifyImageApplyPath(_, _, _)).Times(0);
 
   MessageSharedPtr msg_mobile_response;
   EXPECT_CALL(

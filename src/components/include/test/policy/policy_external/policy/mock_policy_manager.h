@@ -61,6 +61,7 @@ class MockPolicyManager : public PolicyManager {
   MOCK_METHOD2(LoadPT,
                bool(const std::string& file, const BinaryMessage& pt_content));
   MOCK_METHOD1(ResetPT, bool(const std::string& file_name));
+  MOCK_METHOD1(GetUpdateUrl, std::string(int service_type));
   MOCK_METHOD2(GetUpdateUrls,
                void(const uint32_t service_type, EndpointUrls& out_end_points));
   MOCK_METHOD2(GetUpdateUrls,
@@ -235,6 +236,12 @@ class MockPolicyManager : public PolicyManager {
                     int32_t timespan_seconds));
   MOCK_CONST_METHOD0(get_settings, const PolicySettings&());
   MOCK_METHOD1(set_settings, void(const PolicySettings* get_settings));
+  MOCK_METHOD1(GetNextUpdateUrl, AppIdURL(const EndpointUrls& urls));
+  MOCK_CONST_METHOD2(RetrySequenceUrl,
+                     AppIdURL(const struct RetrySequenceURL&,
+                              const EndpointUrls& urls));
+  MOCK_METHOD1(SetExternalConsentStatus, bool(const ExternalConsentStatus&));
+  MOCK_METHOD0(GetExternalConsentStatus, ExternalConsentStatus());
 };
 }  // namespace policy_manager_test
 }  // namespace components

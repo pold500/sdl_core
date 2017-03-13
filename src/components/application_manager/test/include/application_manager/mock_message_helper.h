@@ -118,11 +118,20 @@ class MockMessageHelper {
   MOCK_METHOD2(SendDecryptCertificateToHMI,
                void(const std::string& file_name,
                     ApplicationManager& app_mngr));
+#ifdef EXTERNAL_PROPRIETARY_MODE
+  MOCK_METHOD4(
+      SendGetListOfPermissionsResponse,
+      void(const std::vector<policy::FunctionalGroupPermission>& permissions,
+           const policy::ExternalConsentStatus& external_consent_status,
+           uint32_t correlation_id,
+           ApplicationManager& app_mngr));
+#else
   MOCK_METHOD3(
       SendGetListOfPermissionsResponse,
       void(const std::vector<policy::FunctionalGroupPermission>& permissions,
            uint32_t correlation_id,
            ApplicationManager& app_mngr));
+#endif  // #ifdef EXTERNAL_PROPRIETARY_MODE
   MOCK_METHOD3(SendOnPermissionsChangeNotification,
                void(uint32_t connection_key,
                     const policy::Permissions& permissions,
@@ -160,6 +169,10 @@ class MockMessageHelper {
                                           ApplicationConstSharedPtr app,
                                           ApplicationManager& app_mngr));
   MOCK_METHOD3(VerifyImage,
+               mobile_apis::Result::eType(smart_objects::SmartObject& message,
+                                          ApplicationConstSharedPtr app,
+                                          ApplicationManager& app_mngr));
+  MOCK_METHOD3(VerifyImageApplyPath,
                mobile_apis::Result::eType(smart_objects::SmartObject& message,
                                           ApplicationConstSharedPtr app,
                                           ApplicationManager& app_mngr));

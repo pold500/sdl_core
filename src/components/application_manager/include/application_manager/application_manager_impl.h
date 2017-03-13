@@ -724,12 +724,12 @@ class ApplicationManagerImpl
   // Overriden SecurityManagerListener method
   bool OnHandshakeDone(
       uint32_t connection_key,
-      security_manager::SSLContext::HandshakeResult result) OVERRIDE FINAL;
+      security_manager::SSLContext::HandshakeResult result) OVERRIDE;
 
-  void OnCertificateUpdateRequired() OVERRIDE FINAL;
+  void OnCertificateUpdateRequired() OVERRIDE;
 
   security_manager::SSLContext::HandshakeContext GetHandshakeContext(
-      uint32_t key) const OVERRIDE FINAL;
+      uint32_t key) const OVERRIDE;
 #endif  // ENABLE_SECURITY
 
   /**
@@ -1039,6 +1039,12 @@ class ApplicationManagerImpl
   bool IsStopping() const OVERRIDE {
     return is_stopping_;
   }
+
+  /**
+   * @brief Clear all applications' persistent data in app_storage and
+   * AppIconsFolder
+   */
+  void ClearUserStorage();
 
   StateController& state_controller() OVERRIDE;
   const ApplicationManagerSettings& get_settings() const OVERRIDE;

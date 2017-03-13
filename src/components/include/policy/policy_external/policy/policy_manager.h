@@ -80,11 +80,13 @@ class PolicyManager : public usage_statistics::StatisticsManager {
    */
   virtual bool ResetPT(const std::string& file_name) = 0;
 
+  virtual std::string GetUpdateUrl(int service_type) = 0;
+
   /**
-   * @brief Gets all URLs for sending PTS to from PT itself.
-   * @param service_type Service specifies user of URL
-   * @return vector of urls
-   */
+ * @brief Gets all URLs for sending PTS to from PT itself.
+ * @param service_type Service specifies user of URL
+ * @return vector of urls
+ */
 
   virtual void GetUpdateUrls(const uint32_t service_type,
                              EndpointUrls& out_end_points) = 0;
@@ -484,10 +486,16 @@ class PolicyManager : public usage_statistics::StatisticsManager {
 
   virtual const PolicySettings& get_settings() const = 0;
 
+  /**
+   * @brief Finds the next URL that must be sent on OnSystemRequest retry
+   * @param urls vector of vectors that contain urls for each application
+   * @return Pair of policy application id and application url id from the
+   * urls vector
+   */
+  virtual AppIdURL GetNextUpdateUrl(const EndpointUrls& urls) = 0;
 #ifdef SDL_REMOTE_CONTROL
   virtual void SetDefaultHmiTypes(const std::string& application_id,
                                   const std::vector<int>& hmi_types) = 0;
-
   /**
    * Gets HMI types
    * @param application_id ID application
@@ -641,6 +649,33 @@ class PolicyManager : public usage_statistics::StatisticsManager {
   virtual void set_access_remote(
       utils::SharedPtr<AccessRemote> access_remote) = 0;
 #endif  // SDL_REMOTE_CONTROL
+
+  /**
+   * @brief Checks if there is existing URL in the EndpointUrls vector with
+   * index saved in the policy manager and if not, it moves to the next
+   * application index
+   * @param rs contains the application index and url index from the
+   * urls vector that are to be sent on the next OnSystemRequest
+   * @param urls vector of vectors that contain urls for each application
+   * @return Pair of application index and url index
+   */
+  virtual AppIdURL RetrySequenceUrl(const struct RetrySequenceURL& rs,
+                                    const EndpointUrls& urls) const = 0;
+
+  /**
+
+    * @brief Saves customer connectivity settings status
+ * @param status ExternalConsent status
+ * @return true if succeeded, otherwise - false
+ */
+  virtual bool SetExternalConsentStatus(
+      const ExternalConsentStatus& status) = 0;
+
+  /**
+   * @brief Gets customer connectivity settings status
+   * @return external consent status
+   */
+  virtual ExternalConsentStatus GetExternalConsentStatus() = 0;
 
  protected:
   /**
