@@ -494,7 +494,7 @@ TEST_F(SetAudioStreamingIndicatorRequestTest,
 
   ApplicationSharedPtr mock_app_empty;
   EXPECT_CALL(app_mngr_, application(_))
-      .Times(2)
+      .Times(1)
       .WillRepeatedly(Return(mock_app_empty));
 
   EXPECT_CALL(*mock_app_, RemoveIndicatorWaitForResponse(_)).Times(0);
@@ -502,10 +502,6 @@ TEST_F(SetAudioStreamingIndicatorRequestTest,
       mock_message_helper_,
       CreateNegativeResponse(_, _, _, am::mobile_api::Result::GENERIC_ERROR))
       .WillOnce(Return(msg_mobile_response));
-  EXPECT_CALL(
-      app_mngr_,
-      ManageMobileCommand(_, am::commands::Command::CommandOrigin::ORIGIN_SDL))
-      .WillOnce(DoAll(SaveArg<0>(&msg_mobile_response), Return(true)));
 
   command->onTimeOut();
 

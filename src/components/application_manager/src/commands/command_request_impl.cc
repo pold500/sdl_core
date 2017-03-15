@@ -225,13 +225,12 @@ void CommandRequestImpl::onTimeOut() {
                                             function_id(),
                                             correlation_id(),
                                             mobile_api::Result::GENERIC_ERROR);
-
-  AddTimeOutComponentInfoToMessage(response);
-
+  AddTimeOutComponentInfoToMessage(*response, awaiting_response_interfaces_);
   application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
 }
 
-void CommandRequestImpl::on_event(const event_engine::Event& event) {}
+void CommandRequestImpl::on_event(const event_engine::Event& event) {
+}
 
 void CommandRequestImpl::SendResponse(
     const bool success,
@@ -248,9 +247,11 @@ void CommandRequestImpl::SendResponse(
     current_state_ = kCompleted;
   }
 
-  smart_objects::SmartObjectSPtr result =
-      utils::MakeShared<smart_objects::SmartObject>();
-
+  smart_objects::SmartObjectSPtr result = new smart_objects::SmartObject;
+  if (!result) {
+    LOG4CXX_ERROR(logger_, "Memory allocation failed.");
+    return;
+  }
   smart_objects::SmartObject& response = *result;
 
   response[strings::params][strings::message_type] = MessageType::kResponse;
@@ -780,85 +781,82 @@ const CommandParametersPermissions& CommandRequestImpl::parameters_permissions()
   return parameters_permissions_;
 }
 
+void CommandRequestImpl::StartAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
+    awaiting_response_interfaces_.insert(interface_id);
+}
+
+bool CommandRequestImpl::GetInterfaceAwaitState(const HmiInterfaces::InterfaceID &interface_id) {
+    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
+    return (it != awaiting_response_interfaces_.end());
+}
+
+void CommandRequestImpl::EndAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
+    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
+    if(it != awaiting_response_interfaces_.end()) {
+        awaiting_response_interfaces_.erase(it);
+    }
+}
+
 bool CommandRequestImpl::IsResultCodeUnsupported(
-    const ResponseInfo& first, const ResponseInfo& second) const {
-  return ((first.is_ok || first.is_invalid_enum) &&
-          second.is_unsupported_resource) ||
-         ((second.is_ok || second.is_invalid_enum) &&
-          first.is_unsupported_resource) ||
+        const ResponseInfo& first, const ResponseInfo& second) const {
+    return ((first.is_ok || first.is_invalid_enum) &&
+            second.is_unsupported_resource) ||
+            ((second.is_ok || second.is_invalid_enum) &&
+             first.is_unsupported_resource) ||
          (first.is_unsupported_resource && second.is_unsupported_resource);
 }
 
-void CommandRequestImpl::AddTimeOutComponentInfoToMessage(
-    smart_objects::SmartObjectSPtr& response) const {
+std::string GetComponentNameFromInterface(const HmiInterfaces::InterfaceID& interface) {
+    switch(interface) {
+    case HmiInterfaces::HMI_INTERFACE_Buttons:
+        return "Buttons";
+    case HmiInterfaces::HMI_INTERFACE_BasicCommunication:
+        return "BasicCommunication";
+    case HmiInterfaces::HMI_INTERFACE_VR:
+        return "VR";
+    case HmiInterfaces::HMI_INTERFACE_TTS:
+        return "TTS";
+    case HmiInterfaces::HMI_INTERFACE_UI:
+        return "UI";
+    case HmiInterfaces::HMI_INTERFACE_Navigation:
+        return "Navigation";
+    case HmiInterfaces::HMI_INTERFACE_VehicleInfo:
+        return "VehicleInfo";
+    case HmiInterfaces::HMI_INTERFACE_SDL:
+        return "SDL";
+    default:
+        return "Unknown type";
+    }
+}
+
+void CommandRequestImpl::AddTimeOutComponentInfoToMessage(smart_objects::SmartObject& response,
+           const std::set<HmiInterfaces::InterfaceID>&
+           not_responding_interfaces) const {
   using NsSmartDeviceLink::NsSmartObjects::SmartObject;
   LOG4CXX_AUTO_TRACE(logger_);
 
-  if (!response) {
-    LOG4CXX_WARN(logger_, "Invalid message object");
-    return;
+  if(not_responding_interfaces.empty()) {
+      return;
   }
-
-  const uint32_t app_connection_key = connection_key();
-  const ApplicationSharedPtr app =
-      application_manager_.application(app_connection_key);
-  if (!app) {
-    LOG4CXX_WARN(logger_, "Invalid connection_key: " << app_connection_key);
-    return;
+  std::vector<HmiInterfaces::InterfaceID> not_responding_interfaces_vector;
+  //we copy contents to vector so we can have iterator that will allow us to do operator-() on it
+  //it will be used in the check later
+  std::copy(not_responding_interfaces.begin(), not_responding_interfaces.end(),
+            std::back_inserter(not_responding_interfaces_vector));
+  LOG4CXX_DEBUG(logger_, "interfaces_of_interest.size()" << not_responding_interfaces.size());
+  std::string not_responding_interfaces_string;
+  for(std::vector<HmiInterfaces::InterfaceID>::const_iterator it = not_responding_interfaces_vector.begin();
+      it != not_responding_interfaces_vector.end(); ++it) {
+      const HmiInterfaces::InterfaceID& not_responding_interface = *it;
+      const std::string component_name = GetComponentNameFromInterface(not_responding_interface);
+      not_responding_interfaces_string += component_name;
+      if(it != (std::end(not_responding_interfaces_vector) - 1)) {
+          not_responding_interfaces_string += ", ";
+      }
   }
-
-  const SmartObject* app_type = app->app_types();
-  if (!app_type) {
-    LOG4CXX_WARN(logger_, "Empty application types array!");
-    return;
-  }
-
-  if (NsSmartDeviceLink::NsSmartObjects::SmartType_Array !=
-      app_type->getType()) {
-    LOG4CXX_WARN(logger_, "Application types are not an array!");
-    return;
-  }
-
-  const SmartObject& app_type_so = app_type->getElement(0);
-  if (NsSmartDeviceLink::NsSmartObjects::invalid_object_value == app_type_so) {
-    LOG4CXX_WARN(logger_, "Invalid object for component type!");
-    return;
-  }
-
-  const int64_t app_hmi_type = app_type_so.asInt();
-  const std::string& component_name = AppHMITypeToString(
-      static_cast<mobile_apis::AppHMIType::eType>(app_hmi_type));
   const std::string component_info =
-      component_name + " component does not respond";
-  (*response)[strings::msg_params][strings::info] = component_info;
-}
-
-std::string CommandRequestImpl::AppHMITypeToString(
-    const mobile_apis::AppHMIType::eType app_hmi_type) const {
-  switch (app_hmi_type) {
-    case mobile_apis::AppHMIType::DEFAULT:
-      return "Default";
-    case mobile_apis::AppHMIType::COMMUNICATION:
-      return "Communication";
-    case mobile_apis::AppHMIType::MEDIA:
-      return "Media";
-    case mobile_apis::AppHMIType::MESSAGING:
-      return "Messaging";
-    case mobile_apis::AppHMIType::NAVIGATION:
-      return "Navigation";
-    case mobile_apis::AppHMIType::INFORMATION:
-      return "Information";
-    case mobile_apis::AppHMIType::SOCIAL:
-      return "Social";
-    case mobile_apis::AppHMIType::BACKGROUND_PROCESS:
-      return "Background Process";
-    case mobile_apis::AppHMIType::TESTING:
-      return "Testing";
-    case mobile_apis::AppHMIType::SYSTEM:
-      return "System";
-    default:
-      return "Invalid Component Type";
-  }
+      not_responding_interfaces_string + " component does not respond";
+  response[strings::msg_params][strings::info] = component_info;
 }
 
 }  // namespace commands

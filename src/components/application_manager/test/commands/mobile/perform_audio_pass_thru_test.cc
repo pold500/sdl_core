@@ -346,7 +346,7 @@ TEST_F(PerformAudioPassThruRequestTest, OnTimeout_GENERIC_ERROR) {
   command->onTimeOut();
 
   ResultCommandExpectations(
-      msg_mobile_response, NULL, am::mobile_api::Result::GENERIC_ERROR, false);
+      msg_mobile_response, "", am::mobile_api::Result::GENERIC_ERROR, false);
 }
 
 TEST_F(

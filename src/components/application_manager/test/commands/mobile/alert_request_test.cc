@@ -235,6 +235,8 @@ TEST_F(AlertRequestTest, OnTimeout_GENERIC_ERROR) {
       (*ui_command_result)[am::strings::msg_params][am::strings::result_code]
           .asInt(),
       static_cast<int32_t>(am::mobile_api::Result::GENERIC_ERROR));
+  EXPECT_EQ((*ui_command_result)[am::strings::msg_params][am::strings::info].asString(),
+          "");
 }
 
 TEST_F(AlertRequestTest, OnEvent_UI_HmiSendSuccess_UNSUPPORTED_RESOURCE) {
