@@ -203,7 +203,7 @@ bool CommandRequestImpl::CleanUp() {
 
 void CommandRequestImpl::Run() {}
 
-void CommandRequestImpl::onTimeOut(const std::string& info) {
+void CommandRequestImpl::onTimeOut() {
   LOG4CXX_AUTO_TRACE(logger_);
 
   unsubscribe_from_all_events();
@@ -224,7 +224,6 @@ void CommandRequestImpl::onTimeOut(const std::string& info) {
                                             function_id(),
                                             correlation_id(),
                                             mobile_api::Result::GENERIC_ERROR);
-  (*response)[strings::msg_params][strings::info] = info;
   AddTimeOutComponentInfoToMessage(response);
   application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
 }
@@ -789,6 +788,29 @@ bool CommandRequestImpl::IsResultCodeUnsupported(
          (first.is_unsupported_resource && second.is_unsupported_resource);
 }
 
+std::string GetComponentNameFromInterface(const HmiInterfaces::InterfaceID& interface) {
+    switch(interface) {
+    case HmiInterfaces::HMI_INTERFACE_Buttons:
+        return "Buttons";
+    case HmiInterfaces::HMI_INTERFACE_BasicCommunication:
+        return "BasicCommunication";
+    case HmiInterfaces::HMI_INTERFACE_VR:
+        return "VR";
+    case HmiInterfaces::HMI_INTERFACE_TTS:
+        return "TTS";
+    case HmiInterfaces::HMI_INTERFACE_UI:
+        return "UI";
+    case HmiInterfaces::HMI_INTERFACE_Navigation:
+        return "Navigation";
+    case HmiInterfaces::HMI_INTERFACE_VehicleInfo:
+        return "VehicleInfo";
+    case HmiInterfaces::HMI_INTERFACE_SDL:
+        return "SDL";
+    default:
+        return "Unknown type";
+    }
+}
+
 void CommandRequestImpl::AddTimeOutComponentInfoToMessage(
     smart_objects::SmartObjectSPtr& response) const {
   using NsSmartDeviceLink::NsSmartObjects::SmartObject;
@@ -799,66 +821,28 @@ void CommandRequestImpl::AddTimeOutComponentInfoToMessage(
     return;
   }
 
-  const uint32_t app_connection_key = connection_key();
-  const ApplicationSharedPtr app =
-      application_manager_.application(app_connection_key);
-  if (!app) {
-    LOG4CXX_WARN(logger_, "Invalid connection_key: " << app_connection_key);
-    return;
+  std::vector<HmiInterfaces::InterfaceID> m_notRespondingInterfaces;
+  for(int interface_id = HmiInterfaces::InterfaceID::HMI_INTERFACE_Buttons;
+      interface_id <= HmiInterfaces::InterfaceID::HMI_INTERFACE_SDL; ++interface_id) {
+      const HmiInterfaces::InterfaceState interface_state =
+                application_manager_.hmi_interfaces().GetInterfaceState(static_cast<HmiInterfaces::InterfaceID>(interface_id));
+      if(interface_state == HmiInterfaces::InterfaceState::STATE_NOT_RESPONSE) {
+         m_notRespondingInterfaces.push_back(static_cast<HmiInterfaces::InterfaceID>(interface_id));
+      }
+  }
+  std::string not_responding_components;
+  for(auto it = std::begin(m_notRespondingInterfaces); it != std::end(m_notRespondingInterfaces); ++it) {
+      const HmiInterfaces::InterfaceID& not_responding_interface = *it;
+      const auto component_name = GetComponentNameFromInterface(not_responding_interface);
+      not_responding_components+= component_name;
+      if(it != (std::end(m_notRespondingInterfaces) - 1)) {
+          not_responding_components += ", ";
+      }
   }
 
-  const SmartObject* app_type = app->app_types();
-  if (!app_type) {
-    LOG4CXX_WARN(logger_, "Empty application types array!");
-    return;
-  }
-
-  if (NsSmartDeviceLink::NsSmartObjects::SmartType_Array !=
-      app_type->getType()) {
-    LOG4CXX_WARN(logger_, "Application types are not an array!");
-    return;
-  }
-
-  const SmartObject& app_type_so = app_type->getElement(0);
-  if (NsSmartDeviceLink::NsSmartObjects::invalid_object_value == app_type_so) {
-    LOG4CXX_WARN(logger_, "Invalid object for component type!");
-    return;
-  }
-
-  const int64_t app_hmi_type = app_type_so.asInt();
-  const std::string& component_name = AppHMITypeToString(
-      static_cast<mobile_apis::AppHMIType::eType>(app_hmi_type));
   const std::string component_info =
-      component_name + " component does not respond";
+      not_responding_components + " component does not respond";
   (*response)[strings::msg_params][strings::info] = component_info;
-}
-
-std::string CommandRequestImpl::AppHMITypeToString(
-    const mobile_apis::AppHMIType::eType app_hmi_type) const {
-  switch (app_hmi_type) {
-    case mobile_apis::AppHMIType::DEFAULT:
-      return "Default";
-    case mobile_apis::AppHMIType::COMMUNICATION:
-      return "Communication";
-    case mobile_apis::AppHMIType::MEDIA:
-      return "Media";
-    case mobile_apis::AppHMIType::MESSAGING:
-      return "Messaging";
-    case mobile_apis::AppHMIType::NAVIGATION:
-      return "Navigation";
-    case mobile_apis::AppHMIType::INFORMATION:
-      return "Information";
-    case mobile_apis::AppHMIType::SOCIAL:
-      return "Social";
-    case mobile_apis::AppHMIType::BACKGROUND_PROCESS:
-      return "Background Process";
-    case mobile_apis::AppHMIType::TESTING:
-      return "Testing";
-    case mobile_apis::AppHMIType::SYSTEM:
-      return "System";
-    default:
-      return "Invalid Component Type";
-  }
 }
 
 }  // namespace commands
