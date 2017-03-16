@@ -831,7 +831,8 @@ void CommandRequestImpl::AddTimeOutComponentInfoToMessage(
       }
   }
   std::string not_responding_components;
-  for(auto it = std::begin(m_notRespondingInterfaces); it != std::end(m_notRespondingInterfaces); ++it) {
+  for(std::vector<HmiInterfaces::InterfaceID>::const_iterator it = m_notRespondingInterfaces.begin();
+      it != m_notRespondingInterfaces.end(); ++it) {
       const HmiInterfaces::InterfaceID& not_responding_interface = *it;
       const auto component_name = GetComponentNameFromInterface(not_responding_interface);
       not_responding_components+= component_name;

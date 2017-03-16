@@ -221,6 +221,10 @@ TEST_F(AlertRequestTest, OnTimeout_GENERIC_ERROR) {
       CreateNegativeResponse(_, _, _, am::mobile_api::Result::GENERIC_ERROR))
       .WillOnce(Return(command_msg));
 
+  EXPECT_CALL(hmi_interfaces_, GetInterfaceState(_)).
+          WillOnce(Return(am::HmiInterfaces::InterfaceState::STATE_NOT_RESPONSE)).
+          WillRepeatedly(Return(am::HmiInterfaces::InterfaceState::STATE_AVAILABLE));
+
   MessageSharedPtr ui_command_result;
   EXPECT_CALL(
       app_mngr_,
@@ -235,6 +239,8 @@ TEST_F(AlertRequestTest, OnTimeout_GENERIC_ERROR) {
       (*ui_command_result)[am::strings::msg_params][am::strings::result_code]
           .asInt(),
       static_cast<int32_t>(am::mobile_api::Result::GENERIC_ERROR));
+  EXPECT_EQ((*ui_command_result)[am::strings::msg_params][am::strings::info].asString(),
+          "Buttons component does not respond");
 }
 
 TEST_F(AlertRequestTest, OnEvent_UI_HmiSendSuccess_UNSUPPORTED_RESOURCE) {

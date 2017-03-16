@@ -228,6 +228,11 @@ TEST_F(PerformInteractionRequestTest, OnTimeout_VR_GENERIC_ERROR) {
       app_mngr_,
       ManageMobileCommand(_, am::commands::Command::CommandOrigin::ORIGIN_SDL))
       .WillOnce(DoAll(SaveArg<0>(&vr_command_result), Return(true)));
+
+  EXPECT_CALL(hmi_interfaces_, GetInterfaceState(_)).
+            WillOnce(Return(am::HmiInterfaces::InterfaceState::STATE_NOT_RESPONSE)).
+            WillRepeatedly(Return(am::HmiInterfaces::InterfaceState::STATE_AVAILABLE));
+
   command->onTimeOut();
 
   EXPECT_EQ(
@@ -236,6 +241,7 @@ TEST_F(PerformInteractionRequestTest, OnTimeout_VR_GENERIC_ERROR) {
   EXPECT_EQ(
       (*vr_command_result)[strings::msg_params][strings::result_code].asInt(),
       static_cast<int32_t>(am::mobile_api::Result::GENERIC_ERROR));
+  EXPECT_FALSE((*vr_command_result)[strings::msg_params][strings::info].asString().empty());
 }
 
 TEST_F(

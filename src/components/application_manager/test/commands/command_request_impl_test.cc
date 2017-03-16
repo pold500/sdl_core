@@ -185,6 +185,7 @@ TEST_F(CommandRequestImplTest, OnTimeOut_StateAwaitingHMIResponse_SUCCESS) {
 
   command->onTimeOut();
 
+  EXPECT_FALSE((*dummy_msg)[am::strings::msg_params][am::strings::info].asString().empty());
   // If `command` not done till now, then state should change to `kTimedOut`
   // and sent it to application manager to deal with it.
   EXPECT_EQ(RequestState::kTimedOut, command->current_state());

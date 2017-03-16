@@ -342,11 +342,14 @@ TEST_F(PerformAudioPassThruRequestTest, OnTimeout_GENERIC_ERROR) {
       app_mngr_,
       ManageMobileCommand(_, am::commands::Command::CommandOrigin::ORIGIN_SDL))
       .WillOnce(DoAll(SaveArg<0>(&msg_mobile_response), Return(true)));
+  EXPECT_CALL(hmi_interfaces_, GetInterfaceState(_)).
+            WillOnce(Return(am::HmiInterfaces::InterfaceState::STATE_NOT_RESPONSE)).
+            WillRepeatedly(Return(am::HmiInterfaces::InterfaceState::STATE_AVAILABLE));
 
   command->onTimeOut();
 
   ResultCommandExpectations(
-      msg_mobile_response, NULL, am::mobile_api::Result::GENERIC_ERROR, false);
+      msg_mobile_response, "Buttons component does not respond", am::mobile_api::Result::GENERIC_ERROR, false);
 }
 
 TEST_F(
