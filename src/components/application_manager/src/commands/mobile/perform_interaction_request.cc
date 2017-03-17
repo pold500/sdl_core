@@ -258,6 +258,9 @@ void PerformInteractionRequest::on_event(const event_engine::Event& event) {
 
   if (!HasHMIResponsesToWait()) {
     LOG4CXX_DEBUG(logger_, "Send response in BOTH iteraction mode");
+    if (vr_choice_id_.is_initialized()) {
+      msg_param[strings::choice_id] = vr_choice_id_.asType();
+    }
     SendBothModeResponse(msg_param);
   }
 }
@@ -346,15 +349,15 @@ bool PerformInteractionRequest::ProcessVRResponse(
 
   const SmartObject& hmi_msg_params = message[strings::msg_params];
   if (hmi_msg_params.keyExists(strings::choice_id)) {
-    const int choise_id = hmi_msg_params[strings::choice_id].asInt();
-    if (!CheckChoiceIDFromResponse(app, choise_id)) {
+    vr_choice_id_ = hmi_msg_params[strings::choice_id].asUInt();
+    if (!CheckChoiceIDFromResponse(app, vr_choice_id_)) {
       LOG4CXX_ERROR(logger_, "Wrong choiceID was received from HMI");
       TerminatePerformInteraction();
       SendResponse(
           false, Result::GENERIC_ERROR, "Wrong choiceID was received from HMI");
       return true;
     }
-    msg_params[strings::choice_id] = choise_id;
+    msg_params[strings::choice_id] = vr_choice_id_.asType();
   }
   return false;
 }
@@ -395,14 +398,14 @@ void PerformInteractionRequest::ProcessUIResponse(
   if (result) {
     if (is_pi_warning) {
       ui_result_code_ = hmi_apis::Common_Result::WARNINGS;
-      ui_info_ = "Unsupported phoneme type was sent in an item";
+      ui_info_ = message[strings::msg_params][strings::info].asString();
       if (message.keyExists(strings::params) &&
           message[strings::params].keyExists(strings::data)) {
         msg_params = message[strings::params][strings::data];
       }
     } else if (is_pi_unsupported) {
       ui_result_code_ = hmi_apis::Common_Result::UNSUPPORTED_RESOURCE;
-      ui_info_ = "Unsupported phoneme type was sent in an item";
+      ui_info_ = message[strings::msg_params][strings::info].asString();
     } else if (message.keyExists(strings::msg_params)) {
       msg_params = message[strings::msg_params];
     }

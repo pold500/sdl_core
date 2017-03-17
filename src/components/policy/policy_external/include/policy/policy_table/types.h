@@ -72,7 +72,7 @@ typedef Array<Enum<HmiLevel>, 0, 4> HmiLevels;
 
 typedef Array<Enum<Parameter>, 0, 100> Parameters;
 
-typedef Map<RpcParameters, 0, 50> Rpc;
+typedef Map<RpcParameters, 0, 65535> Rpc;
 
 typedef Array<String<10, 65535>, 1, 3> URL;
 
@@ -84,7 +84,7 @@ typedef uint8_t NumberOfNotificationsType;
 typedef Map<Integer<NumberOfNotificationsType, 0, 255>, 0, 6>
     NumberOfNotificationsPerMinute;
 
-typedef Array<Integer<uint16_t, 1, 1000>, 0, 10> SecondsBetweenRetries;
+typedef Array<Integer<uint16_t, 1, 1000>, 0, 5> SecondsBetweenRetries;
 
 typedef Map<MessageString, 0, 600> Languages;
 
@@ -311,7 +311,7 @@ struct RpcParameters : CompositeType {
 
 struct ExternalConsentEntity : CompositeType {
  public:
-  typedef Integer<int32_t, INT32_MIN, INT32_MAX> EntityInt;
+  typedef Integer<int32_t, 0, 128> EntityInt;
   EntityInt entity_type;
   EntityInt entity_id;
 
@@ -327,7 +327,7 @@ struct ExternalConsentEntity : CompositeType {
   void SetPolicyTableType(PolicyTableType pt_type) OVERRIDE;
 };
 
-typedef Array<ExternalConsentEntity, 0, 255>
+typedef Array<ExternalConsentEntity, 0, 100>
     DisallowedByExternalConsentEntities;
 
 struct Rpcs : CompositeType {

@@ -68,7 +68,7 @@ namespace components {
 namespace policy_test {
 
 namespace {
-const int32_t kPolicyTablesNumber = 33;
+const int32_t kPolicyTablesNumber = 34;
 }
 
 class SQLPTRepresentationTest : public SQLPTRepresentation,
@@ -389,7 +389,8 @@ TEST_F(SQLPTRepresentationTest,
   // Check
   utils::dbms::SQLQuery query(reps->db());
   const std::string query_select =
-      "SELECT COUNT(*) FROM sqlite_master WHERE `type` = 'table'";
+      "SELECT COUNT(*) FROM sqlite_master"
+      " WHERE `type` = 'table' AND `name` NOT LIKE 'sqlite_%'";
   // In normally created PT there are more than 0 tables
   query.Prepare(query_select);
   query.Next();
@@ -406,7 +407,9 @@ TEST_F(SQLPTRepresentationTest,
   // Check PT structure destroyed and tables number is 0
   query.Prepare(query_select);
   query.Next();
-  ASSERT_EQ(kPolicyTablesNumber, query.GetInteger(0));
+
+  const int policy_tables_number = 34;
+  ASSERT_EQ(policy_tables_number, query.GetInteger(0));
 
   const std::string query_select_count_of_iap_buffer_full =
       "SELECT `count_of_iap_buffer_full` FROM `usage_and_error_count`";
