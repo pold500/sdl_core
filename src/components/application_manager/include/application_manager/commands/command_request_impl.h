@@ -268,6 +268,30 @@ class CommandRequestImpl : public CommandImpl,
    */
   const CommandParametersPermissions& parameters_permissions() const;
 
+  /**
+   * @brief This set stores all the interfaces which are awaited by SDL to
+            return a response on some request
+  */
+  std::set<HmiInterfaces::InterfaceID> awaiting_response_interfaces_;
+  /**
+   * @brief Adds interface to be awaited for by sdl request command
+     @param interface_id interface which SDL expects to response in given time
+  */
+  void StartAwaitForInterface(const HmiInterfaces::InterfaceID& interface_id);
+
+  /**
+   * @brief Gets interface await state.
+     @param interface_id interface which SDL awaits for response in given time
+     @return true if SDL awaits for response from given interface in interface_id
+  */
+  bool GetInterfaceAwaitState(const HmiInterfaces::InterfaceID& interface_id);
+
+  /**
+   * @brief Sets given HMI interface await status to false
+     @param interface_id interface which SDL no longer awaits for response in given time
+  */
+  void EndAwaitForInterface(const HmiInterfaces::InterfaceID& interface_id);
+
   RequestState current_state_;
   sync_primitives::Lock state_lock_;
   CommandParametersPermissions parameters_permissions_;
@@ -296,19 +320,22 @@ class CommandRequestImpl : public CommandImpl,
       const hmi_apis::FunctionID::eType& function_id);
 
   /**
-   * @brief Add information for the component of response in case of timeout
-   * @param response Response message, which info should be extended
-   */
-  void AddTimeOutComponentInfoToMessage(
-      smart_objects::SmartObjectSPtr& response) const;
-
-  /**
    * @brief Method transforms AppHMIType to string
    * @param enum AppHMIType app_hmi_type contains enum value
    * @return string of AppHMIType
    */
   std::string AppHMITypeToString(
       const mobile_apis::AppHMIType::eType app_hmi_type) const;
+
+  /**
+   * @brief Adds information to result message "info" param in case of GENERIC_ERROR
+            about component which not repsonded in time
+   * @param response Response message, which info should be extended
+   * @param interfaces Vector with all interfaces from which command is expecting
+   *        to receive a response.
+   */
+  void AddTimeOutComponentInfoToMessage(smart_objects::SmartObject& response,
+      const std::set<HmiInterfaces::InterfaceID> &_not_responding_interfaces) const;
 };
 
 }  // namespace commands

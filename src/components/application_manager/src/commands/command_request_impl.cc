@@ -203,56 +203,6 @@ bool CommandRequestImpl::CleanUp() {
 
 void CommandRequestImpl::Run() {}
 
-void CommandRequestImpl::onTimeOutSetComponentInfo(const std::string& component_name) {
-    LOG4CXX_AUTO_TRACE(logger_);
-    unsubscribe_from_all_events();
-    {
-      // FIXME (dchmerev@luxoft.com): atomic_xchg fits better
-      sync_primitives::AutoLock auto_lock(state_lock_);
-      if (kCompleted == current_state_) {
-        LOG4CXX_DEBUG(logger_, "current_state_ = kCompleted");
-        // don't send timeout if request completed
-        return;
-      }
-
-      current_state_ = kTimedOut;
-    }
-
-    smart_objects::SmartObjectSPtr response =
-        MessageHelper::CreateNegativeResponse(connection_key(),
-                                              function_id(),
-                                              correlation_id(),
-                                              mobile_api::Result::GENERIC_ERROR);
-    std::string component_info(component_name);
-    component_info += std::string(" component does not respond");
-    (*response)[strings::msg_params][strings::info] = component_info;
-    application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
-}
-
-void CommandRequestImpl::onTimeOutSetComponentInfo(const std::vector<HmiInterfaces::InterfaceID>& interfaces) {
-    LOG4CXX_AUTO_TRACE(logger_);
-    unsubscribe_from_all_events();
-    {
-      // FIXME (dchmerev@luxoft.com): atomic_xchg fits better
-      sync_primitives::AutoLock auto_lock(state_lock_);
-      if (kCompleted == current_state_) {
-        LOG4CXX_DEBUG(logger_, "current_state_ = kCompleted");
-        // don't send timeout if request completed
-        return;
-      }
-
-      current_state_ = kTimedOut;
-    }
-
-    smart_objects::SmartObjectSPtr response =
-        MessageHelper::CreateNegativeResponse(connection_key(),
-                                              function_id(),
-                                              correlation_id(),
-                                              mobile_api::Result::GENERIC_ERROR);
-    AddTimeOutComponentInfoToMessage(*response, interfaces);
-    application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
-}
-
 void CommandRequestImpl::onTimeOut() {
   LOG4CXX_AUTO_TRACE(logger_);
 
@@ -274,7 +224,7 @@ void CommandRequestImpl::onTimeOut() {
                                             function_id(),
                                             correlation_id(),
                                             mobile_api::Result::GENERIC_ERROR);
-
+  AddTimeOutComponentInfoToMessage(*response, awaiting_response_interfaces_);
   application_manager_.ManageMobileCommand(response, ORIGIN_SDL);
 }
 
@@ -830,12 +780,28 @@ const CommandParametersPermissions& CommandRequestImpl::parameters_permissions()
   return parameters_permissions_;
 }
 
+void CommandRequestImpl::StartAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
+    awaiting_response_interfaces_.insert(interface_id);
+}
+
+bool CommandRequestImpl::GetInterfaceAwaitState(const HmiInterfaces::InterfaceID &interface_id) {
+    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
+    return (it != awaiting_response_interfaces_.end());
+}
+
+void CommandRequestImpl::EndAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
+    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
+    if(it != awaiting_response_interfaces_.end()) {
+        awaiting_response_interfaces_.erase(it);
+    }
+}
+
 bool CommandRequestImpl::IsResultCodeUnsupported(
-    const ResponseInfo& first, const ResponseInfo& second) const {
-  return ((first.is_ok || first.is_invalid_enum) &&
-          second.is_unsupported_resource) ||
-         ((second.is_ok || second.is_invalid_enum) &&
-          first.is_unsupported_resource) ||
+        const ResponseInfo& first, const ResponseInfo& second) const {
+    return ((first.is_ok || first.is_invalid_enum) &&
+            second.is_unsupported_resource) ||
+            ((second.is_ok || second.is_invalid_enum) &&
+             first.is_unsupported_resource) ||
          (first.is_unsupported_resource && second.is_unsupported_resource);
 }
 
@@ -863,33 +829,30 @@ std::string GetComponentNameFromInterface(const HmiInterfaces::InterfaceID& inte
 }
 
 void CommandRequestImpl::AddTimeOutComponentInfoToMessage(smart_objects::SmartObject& response,
-           const std::vector<HmiInterfaces::InterfaceID>&
+           const std::set<HmiInterfaces::InterfaceID>&
            not_responding_interfaces) const {
   using NsSmartDeviceLink::NsSmartObjects::SmartObject;
-  //typedef std::vector<HmiInterfaces::InterfaceID> InterfaceVector;
   LOG4CXX_AUTO_TRACE(logger_);
-  LOG4CXX_DEBUG(logger_, "interfaces_of_interest.size()" << interfaces_of_interest.size());
-  InterfaceVector ;
-//  for(InterfaceVector::const_iterator it = interfaces_of_interest.begin(); it != interfaces_of_interest.end(); ++it) {
-//      const HmiInterfaces::InterfaceState interface_state =
-//                application_manager_.hmi_interfaces().GetInterfaceState(static_cast<HmiInterfaces::InterfaceID>(*it));
-//      if(interface_state == HmiInterfaces::InterfaceState::STATE_NOT_RESPONSE) {
-//         m_notRespondingInterfaces.push_back(static_cast<HmiInterfaces::InterfaceID>(*it));
-//      }
-//  }
-  std::string not_responding_components;
-  for(std::vector<HmiInterfaces::InterfaceID>::const_iterator it = not_responding_interfaces.begin();
-      it != not_responding_interfaces.end(); ++it) {
+
+  if(not_responding_interfaces.empty()) {
+      return;
+  }
+  std::vector<HmiInterfaces::InterfaceID> not_responding_interfaces_vector;
+  std::copy(not_responding_interfaces.begin(), not_responding_interfaces.end(),
+            std::back_inserter(not_responding_interfaces_vector));
+  LOG4CXX_DEBUG(logger_, "interfaces_of_interest.size()" << not_responding_interfaces.size());
+  std::string not_responding_interfaces_string;
+  for(std::vector<HmiInterfaces::InterfaceID>::const_iterator it = not_responding_interfaces_vector.begin();
+      it != not_responding_interfaces_vector.end(); ++it) {
       const HmiInterfaces::InterfaceID& not_responding_interface = *it;
       const std::string component_name = GetComponentNameFromInterface(not_responding_interface);
-      not_responding_components += component_name;
-      if(it != (std::end(m_notRespondingInterfaces) - 1)) {
-          not_responding_components += ", ";
+      not_responding_interfaces_string += component_name;
+      if(it != (std::end(not_responding_interfaces_vector) - 1)) {
+          not_responding_interfaces_string += ", ";
       }
   }
-
   const std::string component_info =
-      not_responding_components + " component does not respond";
+      not_responding_interfaces_string + " component does not respond";
   response[strings::msg_params][strings::info] = component_info;
 }
 
