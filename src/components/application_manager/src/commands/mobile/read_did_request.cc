@@ -87,7 +87,7 @@ void ReadDIDRequest::Run() {
       (*message_)[strings::msg_params][strings::ecu_name];
   msg_params[strings::did_location] =
       (*message_)[strings::msg_params][strings::did_location];
-
+  StartAwaitForInterface(HmiInterfaces::HMI_INTERFACE_VehicleInfo);
   SendHMIRequest(hmi_apis::FunctionID::VehicleInfo_ReadDID, &msg_params, true);
 }
 
@@ -104,7 +104,7 @@ void ReadDIDRequest::on_event(const event_engine::Event& event) {
           result_code, HmiInterfaces::HMI_INTERFACE_VehicleInfo);
       std::string response_info;
       GetInfo(message, response_info);
-
+      EndAwaitForInterface(HmiInterfaces::HMI_INTERFACE_VehicleInfo);
       SendResponse(result,
                    MessageHelper::HMIToMobileResult(result_code),
                    response_info.empty() ? NULL : response_info.c_str(),

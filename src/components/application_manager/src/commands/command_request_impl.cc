@@ -781,82 +781,100 @@ const CommandParametersPermissions& CommandRequestImpl::parameters_permissions()
   return parameters_permissions_;
 }
 
-void CommandRequestImpl::StartAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
-    awaiting_response_interfaces_.insert(interface_id);
+void CommandRequestImpl::StartAwaitForInterface(
+    const HmiInterfaces::InterfaceID& interface_id) {
+  awaiting_response_interfaces_.insert(interface_id);
 }
 
-bool CommandRequestImpl::GetInterfaceAwaitState(const HmiInterfaces::InterfaceID &interface_id) {
-    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
-    return (it != awaiting_response_interfaces_.end());
+bool CommandRequestImpl::GetInterfaceAwaitState(
+    const HmiInterfaces::InterfaceID& interface_id) {
+  std::set<HmiInterfaces::InterfaceID>::const_iterator it =
+      awaiting_response_interfaces_.find(interface_id);
+  return (it != awaiting_response_interfaces_.end());
 }
 
-void CommandRequestImpl::EndAwaitForInterface(const HmiInterfaces::InterfaceID &interface_id) {
-    std::set<HmiInterfaces::InterfaceID>::const_iterator it = awaiting_response_interfaces_.find(interface_id);
-    if(it != awaiting_response_interfaces_.end()) {
-        awaiting_response_interfaces_.erase(it);
-    }
+void CommandRequestImpl::EndAwaitForInterface(
+    const HmiInterfaces::InterfaceID& interface_id) {
+  std::set<HmiInterfaces::InterfaceID>::const_iterator it =
+      awaiting_response_interfaces_.find(interface_id);
+  if (it != awaiting_response_interfaces_.end()) {
+    awaiting_response_interfaces_.erase(it);
+  }
 }
 
 bool CommandRequestImpl::IsResultCodeUnsupported(
-        const ResponseInfo& first, const ResponseInfo& second) const {
-    return ((first.is_ok || first.is_invalid_enum) &&
-            second.is_unsupported_resource) ||
-            ((second.is_ok || second.is_invalid_enum) &&
-             first.is_unsupported_resource) ||
+    const ResponseInfo& first, const ResponseInfo& second) const {
+  return ((first.is_ok || first.is_invalid_enum) &&
+          second.is_unsupported_resource) ||
+         ((second.is_ok || second.is_invalid_enum) &&
+          first.is_unsupported_resource) ||
          (first.is_unsupported_resource && second.is_unsupported_resource);
 }
 
-std::string GetComponentNameFromInterface(const HmiInterfaces::InterfaceID& interface) {
-    switch(interface) {
+std::string GetComponentNameFromInterface(
+    const HmiInterfaces::InterfaceID& interface) {
+  switch (interface) {
     case HmiInterfaces::HMI_INTERFACE_Buttons:
-        return "Buttons";
+      return "Buttons";
     case HmiInterfaces::HMI_INTERFACE_BasicCommunication:
-        return "BasicCommunication";
+      return "BasicCommunication";
     case HmiInterfaces::HMI_INTERFACE_VR:
-        return "VR";
+      return "VR";
     case HmiInterfaces::HMI_INTERFACE_TTS:
-        return "TTS";
+      return "TTS";
     case HmiInterfaces::HMI_INTERFACE_UI:
-        return "UI";
+      return "UI";
     case HmiInterfaces::HMI_INTERFACE_Navigation:
-        return "Navigation";
+      return "Navigation";
     case HmiInterfaces::HMI_INTERFACE_VehicleInfo:
-        return "VehicleInfo";
+      return "VehicleInfo";
     case HmiInterfaces::HMI_INTERFACE_SDL:
-        return "SDL";
+      return "SDL";
     default:
-        return "Unknown type";
-    }
+      return "Unknown type";
+  }
 }
 
-void CommandRequestImpl::AddTimeOutComponentInfoToMessage(smart_objects::SmartObject& response,
-           const std::set<HmiInterfaces::InterfaceID>&
-           not_responding_interfaces) const {
+void CommandRequestImpl::AddTimeOutComponentInfoToMessage(
+    smart_objects::SmartObject& response,
+    const std::set<HmiInterfaces::InterfaceID>& not_responding_interfaces)
+    const {
   using NsSmartDeviceLink::NsSmartObjects::SmartObject;
   LOG4CXX_AUTO_TRACE(logger_);
 
-  if(not_responding_interfaces.empty()) {
-      return;
+  if (not_responding_interfaces.empty()) {
+    LOG4CXX_DEBUG(logger_, "not_responding_interfaces is empty, nothing to do. return.");
+    return;
   }
   std::vector<HmiInterfaces::InterfaceID> not_responding_interfaces_vector;
-  //we copy contents to vector so we can have iterator that will allow us to do operator-() on it
-  //it will be used in the check later
-  std::copy(not_responding_interfaces.begin(), not_responding_interfaces.end(),
+  // we copy contents to vector so we can have iterator that will allow us to do
+  // operator-() on it
+  // it will be used in the check later
+  std::copy(not_responding_interfaces.begin(),
+            not_responding_interfaces.end(),
             std::back_inserter(not_responding_interfaces_vector));
-  LOG4CXX_DEBUG(logger_, "interfaces_of_interest.size()" << not_responding_interfaces.size());
+  LOG4CXX_DEBUG(logger_,
+                "interfaces_of_interest.size()"
+                    << not_responding_interfaces.size());
   std::string not_responding_interfaces_string;
-  for(std::vector<HmiInterfaces::InterfaceID>::const_iterator it = not_responding_interfaces_vector.begin();
-      it != not_responding_interfaces_vector.end(); ++it) {
-      const HmiInterfaces::InterfaceID& not_responding_interface = *it;
-      const std::string component_name = GetComponentNameFromInterface(not_responding_interface);
-      not_responding_interfaces_string += component_name;
-      if(it != (std::end(not_responding_interfaces_vector) - 1)) {
-          not_responding_interfaces_string += ", ";
-      }
+  for (std::vector<HmiInterfaces::InterfaceID>::const_iterator it =
+           not_responding_interfaces_vector.begin();
+       it != not_responding_interfaces_vector.end();
+       ++it) {
+    const HmiInterfaces::InterfaceID& not_responding_interface = *it;
+    const std::string component_name =
+        GetComponentNameFromInterface(not_responding_interface);
+    not_responding_interfaces_string += component_name;
+    if (it != (std::end(not_responding_interfaces_vector) - 1)) {
+      not_responding_interfaces_string += ", ";
+    }
   }
-  const std::string component_info =
-      not_responding_interfaces_string + " component does not respond";
-  response[strings::msg_params][strings::info] = component_info;
+  LOG4CXX_DEBUG(logger_,"not_responding_interfaces_string: " << not_responding_interfaces_string);
+  if (!not_responding_interfaces_string.empty()) {
+    const std::string component_info =
+        not_responding_interfaces_string + " component does not respond";
+    response[strings::msg_params][strings::info] = component_info;
+  }
 }
 
 }  // namespace commands
